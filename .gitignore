@@ -4,3 +4,9 @@ output.json
 app.log
 capacity.json
 *.twb
+*.json
+*.twbx
+*.csv
+*.twbr
+*.zip
+*.old

@@ -26,9 +26,23 @@ class Compiler {
 	async run() {
 		let files = await this._index();
 		let intermediaryResult = [];
+		let total = files.length;
+		let i = 0;
+		let pList = [];
 		for (let file of files) {
-			logger.info(`Processing file ${file}`);
-			intermediaryResult.push(...(await this._processFile(file)));
+			//console.log(`Processing file ${file} ${i} / ${total}`);
+			pList.push(this._processFile.bind(this, file));
+			//i++;
+		}
+		let results = await Promise.map(pList, (it) => {
+			logger.info(`Processing ${i} / ${total}`);
+			i++;
+			return it();
+		}, {
+			concurrency: 50 
+		});
+		for (let result of results) {
+			intermediaryResult.push(...result);
 		}
 		await this._write(await this._transform(intermediaryResult));
 	}
@@ -40,7 +54,15 @@ class Compiler {
 		return data;
 	}
 	async _write(data) {
-		return await fs.writeFileAsync(this.dir + '/../output.json', JSON.stringify(data));
+		let parts = [];
+		let totalLength = 0;
+		for (let part of data) {
+			let str = JSON.stringify(part);
+			parts.push(str);
+			totalLength += str.length;
+		}
+		logger.debug(`${parts.length} parts, total ${totalLength} bytes`);
+		return await fs.writeFileAsync(this.dir + '/../output.json', `[${parts.join(',')}]`);
 	}
 	async _index() {
 		return fs.readdirAsync(this.dir);
@@ -53,8 +75,6 @@ class Compiler {
 				id: record.guid,
 				game: record.game,
 				state: record.state,
-				team_size: record.team_size,
-				region: record.region,
 				timestamp: parseInt(filename.split('_')[0]),
 				location: null
 			}
